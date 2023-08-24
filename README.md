@@ -14,7 +14,7 @@ Initialize the client with your API url and key
 ```
 api_url = "https://yourcompany.teleopticloud.com/api"
 api_key = "YOUR_API_KEY"
-client = AsyncApiClient(api_url, api_key)
+client = ApiClient(api_url, api_key)
 ```
 Make a request to get all business units
 ```
@@ -22,6 +22,8 @@ business_units = client.get_all_business_units()
 ```
 Make async requests by awaiting the client methods
 ```
+client = AsyncApiClient(api_url, api_key)
+
 business_units = await client.get_all_business_units()
 print(business_units)
 ```
