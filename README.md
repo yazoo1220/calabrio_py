@@ -12,7 +12,7 @@ from calabrio_py import ApiClient, AsyncApiClient # choose either
 ```
 Initialize the client with your API url and key
 ```
-api_url = "https://yourcompany.calabriocloud.com/api"
+api_url = "https://yourcompany.teleopticloud.com/api"
 api_key = "YOUR_API_KEY"
 client = AsyncApiClient(api_url, api_key)
 ```
