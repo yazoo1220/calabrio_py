@@ -1,5 +1,12 @@
 # calabrio_py
-Unofficial library for Calabrio (WFM tool)
+An unofficial python client library for accessing the Calabrio API.
+
+## Features
+- Asynchronous and synchronous modes
+- Methods for calling all Calabrio API endpoints
+- Helper request objects for passing parameters to write operations
+- Automatic serialization of request objects
+- Response models for easy data access
 
 # Quick Start
 To use it:
