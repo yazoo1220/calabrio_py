@@ -32,16 +32,16 @@
 - external_meetings (List[ExternalMeeting])
 - handle_non_overwritable_activities (bool)
 
-#### ExternalMeeting
-- ExternalMeetingId (str) - ID of the external meeting
-- Period (dict) - Period/timespan for the meeting
-  - StartDate (str) - ISO 8601 start date and time
-  - EndDate (str) - ISO 8601 end date and time
-- Participants (list) - List of participant IDs (strings)
-- ActivityId (str, optional) - Activity ID for the meeting
-- Title (str, optional) - Title of the meeting
-- Location (str, optional) - Location of the meeting
-- Agenda (str, optional) - Agenda text for the meeting
+#### *ExternalMeeting
+  - ExternalMeetingId (str) - ID of the external meeting
+  - Period (dict) - Period/timespan for the meeting
+    - StartDate (str) - ISO 8601 start date and time
+    - EndDate (str) - ISO 8601 end date and time
+  - Participants (list) - List of participant IDs (strings)
+  - ActivityId (str, optional) - Activity ID for the meeting
+  - Title (str, optional) - Title of the meeting
+  - Location (str, optional) - Location of the meeting
+  - Agenda (str, optional) - Agenda text for the meeting
 
 ### add_or_update_person_account_for_person
 - person_id (str)
@@ -84,26 +84,26 @@
 ### add_person
 - add_person_request (AddPersonRequest)
 
-#### AddPersonRequest
-- TimeZoneId (str) - Time zone ID
-- BusinessUnitId (str) - Business unit ID
-- FirstName (str)
-- LastName (str)
-- StartDate (str) - ISO 8601 date
-- Email (str)
-- EmploymentNumber (str)
-- ApplicationLogon (str)
-- Identity (str)
-- TeamId (str)
-- ContractId (str)
-- ContractScheduleId (str)
-- PartTimePercentageId (str)
-- RoleIds (List[str]) - List of role IDs
-- WorkflowControlSetId (str)
-- ShiftBagId (str)
-- BudgetGroupId (str)
-- FirstDayOfWeek (int)
-- Culture (str)
+#### *AddPersonRequest
+  - TimeZoneId (str) - Time zone ID
+  - BusinessUnitId (str) - Business unit ID
+  - FirstName (str)
+  - LastName (str)
+  - StartDate (str) - ISO 8601 date
+  - Email (str)
+  - EmploymentNumber (str)
+  - ApplicationLogon (str)
+  - Identity (str)
+  - TeamId (str)
+  - ContractId (str)
+  - ContractScheduleId (str)
+  - PartTimePercentageId (str)
+  - RoleIds (List[str]) - List of role IDs
+  - WorkflowControlSetId (str)
+  - ShiftBagId (str)
+  - BudgetGroupId (str)
+  - FirstDayOfWeek (int)
+  - Culture (str)
 
 ### add_skills_to_person
 - business_unit_id (str)
@@ -209,16 +209,16 @@ get_group_for_person
 - scenario_id (str)
 - days (List[ForecastDay])
 
-#### ForecastDay
-- Date (str) - ISO 8601 date
-- Intervals (List[ForecastInterval]) - List of forecast intervals
+#### *ForecastDay
+  - Date (str) - ISO 8601 date
+  - Intervals (List[ForecastInterval]) - List of forecast intervals
 
-#### ForecastInterval
-- Tasks (int) - Number of forecasted tasks
-- AverageTaskTimeSeconds (int) - Average task time in seconds
-- AverageAfterTaskTimeSeconds (int) - Average after-task time in seconds
-- AgentsOverride (int) - Override value for number of agents
-- StartTimeUtc (str) - Start time in ISO 8601 format
+##### *ForecastInterval
+    - Tasks (int) - Number of forecasted tasks
+    - AverageTaskTimeSeconds (int) - Average task time in seconds
+    - AverageAfterTaskTimeSeconds (int) - Average after-task time in seconds
+    - AgentsOverride (int) - Override value for number of agents
+    - StartTimeUtc (str) - Start time in ISO 8601 format
 
 ### set_leaving_date_for_person
 - person_id (str)
