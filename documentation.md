@@ -33,12 +33,12 @@
 - handle_non_overwritable_activities (bool)
 
 #### *ExternalMeeting
-  - ExternalMeetingId (str) - ID of the external meeting
-  - Period (dict) - Period/timespan for the meeting
-    - StartDate (str) - ISO 8601 start date and time
-    - EndDate (str) - ISO 8601 end date and time
-  - Participants (list) - List of participant IDs (strings)
-  - ActivityId (str, optional) - Activity ID for the meeting
+    - ExternalMeetingId (str) - ID of the external meeting
+    - Period (dict) - Period/timespan for the meeting
+      - StartDate (str) - ISO 8601 start date and time
+      - EndDate (str) - ISO 8601 end date and time
+    - Participants (list) - List of participant IDs (strings)
+    - ActivityId (str, optional) - Activity ID for the meeting
   - Title (str, optional) - Title of the meeting
   - Location (str, optional) - Location of the meeting
   - Agenda (str, optional) - Agenda text for the meeting
@@ -85,25 +85,25 @@
 - add_person_request (AddPersonRequest)
 
 #### *AddPersonRequest
-  - TimeZoneId (str) - Time zone ID
-  - BusinessUnitId (str) - Business unit ID
-  - FirstName (str)
-  - LastName (str)
-  - StartDate (str) - ISO 8601 date
-  - Email (str)
-  - EmploymentNumber (str)
-  - ApplicationLogon (str)
-  - Identity (str)
-  - TeamId (str)
-  - ContractId (str)
-  - ContractScheduleId (str)
-  - PartTimePercentageId (str)
-  - RoleIds (List[str]) - List of role IDs
-  - WorkflowControlSetId (str)
-  - ShiftBagId (str)
-  - BudgetGroupId (str)
-  - FirstDayOfWeek (int)
-  - Culture (str)
+    - TimeZoneId (str) - Time zone ID
+    - BusinessUnitId (str) - Business unit ID
+    - FirstName (str)
+    - LastName (str)
+    - StartDate (str) - ISO 8601 date
+    - Email (str)
+    - EmploymentNumber (str)
+    - ApplicationLogon (str)
+    - Identity (str)
+    - TeamId (str)
+    - ContractId (str)
+    - ContractScheduleId (str)
+    - PartTimePercentageId (str)
+    - RoleIds (List[str]) - List of role IDs
+    - WorkflowControlSetId (str)
+    - ShiftBagId (str)
+    - BudgetGroupId (str)
+    - FirstDayOfWeek (int)
+    - Culture (str)
 
 ### add_skills_to_person
 - business_unit_id (str)
@@ -210,8 +210,8 @@ get_group_for_person
 - days (List[ForecastDay])
 
 #### *ForecastDay
-  - Date (str) - ISO 8601 date
-  - Intervals (List[ForecastInterval]) - List of forecast intervals
+    - Date (str) - ISO 8601 date
+    - Intervals (List[ForecastInterval]) - List of forecast intervals
 
 ##### *ForecastInterval
     - Tasks (int) - Number of forecasted tasks
