@@ -8,6 +8,8 @@ An unofficial python client library for accessing the Calabrio API.
 - Automatic serialization of request objects
 - Response models for easy data access
 
+For the details about each method, please refer documentation.md
+
 # Quick Start
 To use it:
 
