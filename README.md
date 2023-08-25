@@ -12,10 +12,10 @@ An unofficial python client library for accessing the Calabrio API.
 To use it:
 
 Install 
-```pip install calabrio_py```
+```pip install calabrio-py```
 Import the library
 ```
-from calabrio_py import ApiClient, AsyncApiClient # choose either
+from calabrio_py.api import ApiClient, AsyncApiClient # choose either
 ```
 Initialize the client with your API url and key
 ```
