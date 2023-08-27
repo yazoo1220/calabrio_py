@@ -2,7 +2,7 @@
 An unofficial python client library for accessing the Calabrio API.
 
 ## Features
-- Asynchronous and synchronous modes
+- Synchronous and asynchronous modes
 - Methods for calling all Calabrio API endpoints
 - Helper request objects for passing parameters to write operations
 - Automatic serialization of request objects
