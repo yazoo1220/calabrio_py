@@ -323,12 +323,11 @@ get_group_for_person
 ### get_all_availabilities
 - business_unit_id (str)
 
-### get_all_bud
-get_groups
+### get_all_budget_groups
 - business_unit_id (str)
 
-### get_all_business_units- 
-(no parameters)
+### get_all_business_units
+- (no parameters)
 
 ### get_all_contracts
 - business_unit_id (str)
