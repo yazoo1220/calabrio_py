@@ -74,6 +74,10 @@ class ConfigManager:
             return self.config_data
 
 
+import pandas as pd
+import json
+
+
 class PeopleManager:
     '''
     This class is used to fetch the people data from the API and merge it with the config data.
@@ -233,6 +237,14 @@ class PeopleManager:
         self.fetch_config(self.absences, 'absences', bu_name)
         self.fetch_config(self.contracts, 'contracts', bu_name)
         self.fetch_config(self.roles, 'roles', bu_name)
+        self.fetch_config(self.contract_schedules, 'contract_schedules', bu_name)
+        self.fetch_config(self.workflow_control_sets, 'workflow_control_sets', bu_name)
+        self.fetch_config(self.part_time_percentages, 'part_time_percentages', bu_name)
+        self.fetch_config(self.shift_bags, 'shift_bags', bu_name)
+        self.fetch_config(self.budget_groups, 'budget_groups', bu_name)
+        self.fetch_config(self.shift_categories, 'shift_categories', bu_name)
+        self.fetch_config(self.scenarios, 'scenarios', bu_name)
+
 
     def fetch_config(self, data_list, key, bu_name):
         data_to_add = pd.DataFrame(self.config_data[bu_name][key]['Result'])
