@@ -92,6 +92,13 @@ class PeopleManager:
         self.absences = []
         self.contracts = []
         self.roles = []
+        self.contract_schedules = []
+        self.workflow_control_sets = []
+        self.part_time_percentages = []
+        self.shift_bags = []
+        self.budget_groups = []
+        self.shift_categories = []
+        self.scenarios = []
 
         return None
 
@@ -314,7 +321,7 @@ class PeopleManager:
             log.append(res)
         
         return log
-
+    
 
 class PersonAccountsManager:
     '''
