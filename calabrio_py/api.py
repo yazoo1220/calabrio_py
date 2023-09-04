@@ -519,7 +519,7 @@ class ApiClientBase:
         }
         return self.post(url, request_data)
 
-    def get_all_absences(self, business_unit_id, filter):
+    def get_all_absences(self, business_unit_id, filter=0):
         url = f"{self.base_url}/query/Absence/AllAbsences"
         request_data = {
             "BusinessUnitId": business_unit_id,
@@ -559,7 +559,7 @@ class ApiClientBase:
         }
         return self.post(url, request_data)
 
-    def get_activities(self, business_unit_id, filter):
+    def get_all_activities(self, business_unit_id, filter=0):
         url = f"{self.base_url}/query/Activity/AllActivities"
         request_data = {
             "BusinessUnitId": business_unit_id,
@@ -685,7 +685,7 @@ class ApiClientBase:
         }
         return self.post(url, request_data)
 
-    def query_optional_column(self, business_unit_id, optional_query_parameters=None):
+    def get_all_optional_column(self, business_unit_id, optional_query_parameters=None):
         url = f"{self.base_url}/query/OptionalColumn/AllOptionalColumns"
         if optional_query_parameters:
             url += "?"
@@ -818,7 +818,7 @@ class ApiClientBase:
         }
         return self.post(url, request_data)
     
-    def get_roles(self, business_unit_id):
+    def get_all_roles(self, business_unit_id):
         url = f"{self.base_url}/query/Role/AllRoles"
         request_data = {
             "BusinessUnitId": business_unit_id,
@@ -833,7 +833,7 @@ class ApiClientBase:
         }
         return self.post(url, request_data)
 
-    def query_scenario(self, business_unit_id):
+    def get_all_scenarios(self, business_unit_id):
         url = f"{self.base_url}/query/Scenario/AllScenarios"
         request_data = {
             "BusinessUnitId": business_unit_id
@@ -925,7 +925,7 @@ class ApiClientBase:
         }
         return self.post(url, request_data)
     
-    def get_shift_bags(self, business_unit_id):
+    def get_all_shift_bags(self, business_unit_id):
         url = f"{self.base_url}/query/ShiftBag/AllShiftBags"
         request_data = {
             "BusinessUnitId": business_unit_id
@@ -939,7 +939,7 @@ class ApiClientBase:
         }
         return self.post(url, request_data)
 
-    def query_all_sites(self, business_unit_id):
+    def get_all_sites(self, business_unit_id):
         url = f"{self.base_url}/query/Site/AllSites"
         request_data = {
             "BusinessUnitId": business_unit_id
@@ -1012,7 +1012,7 @@ class ApiClientBase:
         }
         return self.post(url, request_data)
 
-    def get_workflow_control_sets(self, business_unit_id):
+    def get_all_workflow_control_sets(self, business_unit_id):
         url = f"{self.base_url}/query/WorkflowControlSet/AllWorkflowControlSets"
         request_data = {
             "BusinessUnitId": business_unit_id
