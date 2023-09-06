@@ -206,7 +206,7 @@ class PeopleManager:
         self.sites_df.rename(columns={'Id': 'SiteId', 'Name': 'SiteName'}, inplace=True)
 
         self.teams_df = pd.concat(self.teams)
-        self.teams_df.rename(columns={'Id': 'TeamId', 'Name': 'TeamName'}, inplace=True)
+        self.teams_df.rename(columns={'Id': 'TeamId', 'Name': 'SiteTeamName'}, inplace=True)
 
         self.contracts_df = pd.concat(self.contracts)
         self.contracts_df.rename(columns={'Id': 'ContractId', 'Name': 'ContractName'}, inplace=True)
