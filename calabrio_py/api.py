@@ -840,7 +840,7 @@ class ApiClientBase:
         }
         return self.post(url, request_data)
 
-    def schedule_absences_by_person_ids(self, person_ids, period, scenario_id=None):
+    def get_schedule_absences_by_person_ids(self, person_ids, period, scenario_id=None):
         url = f"{self.base_url}/query/ScheduleAbsence/ScheduleAbsencesByPersonIds"
         request_data = {
             "PersonIds": person_ids,
@@ -852,7 +852,7 @@ class ApiClientBase:
         }
         return self.post(url, request_data)
     
-    def query_schedule_audit_trail_by_person_id(self, person_id, date):
+    def get_schedule_audit_trail_by_person_id(self, person_id, date):
         url = f"{self.base_url}/query/ScheduleAuditTrail/ScheduleAuditTrailByPersonId"
         request_data = {
             "PersonId": person_id,
@@ -875,7 +875,7 @@ class ApiClientBase:
         response = self.get(url, params=params)
         return response.json()
 
-    def schedule_by_person_id(self, person_id, start_date, end_date, scenario_id=None):
+    def get_schedule_by_person_id(self, person_id, start_date, end_date, scenario_id=None):
         url = f"{self.base_url}/query/Schedule/ScheduleByPersonId"
         request_data = {
             "PersonId": person_id,
@@ -887,7 +887,7 @@ class ApiClientBase:
         }
         return self.post(url, request_data)
     
-    def schedule_by_person_ids(self, person_ids, start_date, end_date, scenario_id=None):
+    def get_schedule_by_person_ids(self, person_ids, start_date, end_date, scenario_id=None):
         url = f"{self.base_url}/query/Schedule/ScheduleByPersonIds"
         request_data = {
             "PersonIds": person_ids,
