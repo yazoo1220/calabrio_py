@@ -324,13 +324,16 @@ class PeopleManager:
     
 
 class PersonAccountsManager:
-    '''
-    This class is used to fetch the person accounts data from the API and merge it with the config data.
-    '''
-    def __init__(self, client, people_df=None, config_data=None):
-        self.client = client
-        self.people_df = people_df
-        self.config_data = config_data
+    def __init__(self, people_mgr=None, client=None, people_df=None, config_data=None):
+        if people_mgr:
+            self.client = people_mgr.client
+            self.people_mgr = people_mgr
+            self.people_df = people_mgr.people_df
+            self.config_data = people_mgr.config_data
+        else:
+            self.client = client
+            self.people_df = people_df
+            self.config_data = config_data
 
     async def fetch_config_data(self, exclude_bu_names=[]):
         if not hasattr(self, 'config_data'):
@@ -406,17 +409,29 @@ class PersonAccountsManager:
 
         return person_accounts_df
 
-    async def add_or_update_person_accounts_by_df(self, person_accounts_df=None, people_df=None, client=None, by_df=True):
-        if client is None:
-            client = self.client
+    async def fetch_person_accounts_by_employment_numbers(self, employment_numbers, date=None, with_id=False, details=False):
+        if date is None:
+            date = pd.to_datetime('today').strftime('%Y-%m-%d')
 
-        if person_accounts_df is None:
-            person_accounts_df = self.person_accounts_df
+        people_df = self.people_df[self.people_df['EmploymentNumber'].isin(
+            employment_numbers)]
+        person_accounts_df = await self.fetch_person_accounts(date, people_df, with_id=with_id, details=details)
+        return person_accounts_df
 
-        if people_df is None:
-            people_df = self.people_df
+    async def add_or_update_person_accouts_by_employment_number_and_absence_name(self, employment_number, absence_name, balance_in=None, extra=None, accrued=None):
+        if not hasattr(self, 'absences_df'):
+            await self.fetch_config_data()
+            await self.fetch_config_data_as_df()
 
-        person_accounts = person_accounts_df.to_dict(orient='records')
+        if not hasattr(self, 'people_df'):
+            await self.fetch_all_people()
+        
+        person_id = self.people_df[(self.people_df['EmploymentNumber'] == employment_number)]['PersonId'].tolist()[0]
+
+        absence_id = self.absences_df[(self.absences_df['AbsenceName'] == absence_name)]['AbsenceId'].tolist()[0]
+
+        # find existing person account for this person and absence
+
 
         # add PersonId and AbsenceId using people_df and self.absence_df if not present
         if 'PersonId' not in person_accounts[0].keys() or 'AbsenceId' not in person_accounts[0].keys():
