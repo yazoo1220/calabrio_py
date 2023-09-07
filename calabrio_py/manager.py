@@ -445,3 +445,427 @@ class PersonAccountsManager:
         account['StartDate'] = account['StartDate'].strftime('%Y-%m-%d')
         account['EndDate'] = account['EndDate'].strftime('%Y-%m-%d')
         return account
+
+
+class ScheduleManager:
+    def __init__(self, people_mgr, people_df=None, config_data=None):
+        self.client = people_mgr.client
+        self.people_mgr = people_mgr
+        if people_df is None:
+            self.people_df = people_mgr.people_df
+        else:
+            self.people_df = people_df
+        self.config_data = config_data
+        self.fetch_activities_df()
+        self.fetch_absences_df()
+
+    def fetch_activities_df(self):
+        self.activities_df = []
+        for bu in self.people_mgr.bus_df.to_dict('records'):
+            activities = self.people_mgr.config_data[bu['BusinessUnitName']]['activities']['Result']
+            activities_df = pd.DataFrame(activities)
+            activities_df['BusinessUnitName'] = bu['BusinessUnitName']
+            self.activities_df.append(activities_df)
+
+        # flatten self.activities_df
+        self.activities_df = pd.concat(self.activities_df)
+
+        return self.activities_df
+
+    def fetch_absences_df(self):
+        self.absences_df = []
+        for bu in self.people_mgr.bus_df.to_dict('records'):
+            absences = self.people_mgr.config_data[bu['BusinessUnitName']]['absences']['Result']
+            absences_df = pd.DataFrame(absences)
+            absences_df['BusinessUnitName'] = bu['BusinessUnitName']
+            self.absences_df.append(absences_df)
+
+        # flatten self.activities_df
+        self.absences_df = pd.concat(self.absences_df)
+
+        return self.absences_df
+
+
+    def copy_first_shift_name(self,row):
+        if pd.isna(row['ShiftCategoryId']) and row['Shift']:
+            return row['Shift'][0]['Name']
+        else:
+                return None
+
+
+    async def get_all_schedules_in_all_bus(self, start_date, end_date, with_ids=False, as_df=False, max_concurrent=50):
+        try:
+            # Get a list of unique business unit names
+            bu_names = self.people_mgr.bus_df['BusinessUnitName'].unique()
+            print(f"Fetching schedules for {bu_names} ... Please note that this list includes only the business units that have been set in the People Instance associated with this instance")
+
+            # Initialize a list to store schedules
+            schedules = []
+
+            # Create a list of coroutine tasks
+            tasks = [
+                self.get_schedule_by_bu_name(bu_name, start_date, end_date, with_ids, as_df=True, max_concurrent=max_concurrent)
+                for bu_name in bu_names
+            ]
+
+            # Create a semaphore to limit concurrent tasks
+            semaphore = asyncio.Semaphore(max_concurrent)
+
+            # Create a custom progress bar
+            desc = f"Fetching schedules"
+            pbar = tqdm(total=len(tasks), desc=desc)
+
+            async def track_progress(task):
+                async with semaphore:
+                    # Await the task and get the DataFrame result
+                    result_df = await task
+                    if not result_df.empty:
+                        schedules.append(result_df)
+                    pbar.update(1)
+
+            # Fetch schedules concurrently while tracking progress
+            await asyncio.gather(*(track_progress(task) for task in tasks))
+
+            pbar.close()  # Close the progress bar
+
+            # Consolidate schedules into a single DataFrame if needed
+            if as_df:
+                if schedules:
+                    return pd.concat(schedules, ignore_index=True)
+                else:
+                    return pd.DataFrame()
+            else:
+                return schedules
+
+        except Exception as error:
+            # If an error occurs during the process, print the error and return an empty list or DataFrame.
+            print("Error occurred in get_all_schedules_in_all_bus:", error)
+            if as_df:
+                return pd.DataFrame()
+            else:
+                return []
+
+    async def get_schedule_by_bu_name(self, bu_name, start_date, end_date, with_ids=False, as_df=False, max_concurrent=50):
+        try:
+            # Fetch schedules for the specified team and date range.
+            team_names = self.people_mgr.teams_df[self.people_mgr.teams_df['BusinessUnitName'] == bu_name]['TeamName'].values[:2]
+
+            # Initialize a list to store DataFrames
+            schedule_dfs = []
+
+            # Create a list of coroutine tasks
+            tasks = [
+                self.get_schedule_by_team_name(team_name, start_date, end_date, with_ids, as_df=True)
+                for team_name in team_names
+            ]
+
+            # Create a semaphore to limit concurrent tasks
+            semaphore = asyncio.Semaphore(max_concurrent)
+
+            # Create a custom progress bar
+            desc = f"Fetching schedules for {bu_name}"
+            pbar = tqdm(total=len(tasks), desc=desc)
+
+            async def track_progress(task):
+                async with semaphore:
+                    # Await the task and get the DataFrame result
+                    result_df = await task
+                    if not len(result_df) == 0:
+                        schedule_dfs.append(result_df)
+                    pbar.update(1)
+
+            # Fetch schedules concurrently while tracking progress
+            await asyncio.gather(*(track_progress(task) for task in tasks))
+
+            pbar.close()  # Close the progress bar
+
+            # Concatenate all DataFrames into a single DataFrame
+            if schedule_dfs:
+                self.schedule_df = pd.concat(schedule_dfs, ignore_index=True)
+            else:
+                self.schedule_df = pd.DataFrame()
+
+            return self.schedule_df
+
+        except Exception as error:
+            # If an error occurs during the process, print the error and return an empty DataFrame.
+            print("Error occurred in get_schedule_by_bu_name:", error)
+            return pd.DataFrame()
+
+
+    async def _fetch_schedule_data(self, team_id, bu_id, start_date, end_date, max_retries=3):
+        retries = 0
+
+        while retries < max_retries:
+            try:
+                schedules_res = await self.client.get_schedule_by_team_id(bu_id, team_id, start_date, end_date)
+                schedules = schedules_res["Result"]
+                return pd.DataFrame(schedules)
+
+            except Exception as error:
+                print(f"Error occurred (Attempt {retries + 1}/{max_retries}):", error)
+                retries += 1
+                if retries < max_retries:
+                    # Calculate the wait time using exponential backoff (e.g., 2^retry_count seconds)
+                    wait_time = 2 ** retries
+                    print(f"Retrying in {wait_time} seconds...")
+                    await asyncio.sleep(wait_time)
+
+        print("Maximum number of retries reached. Returning an empty DataFrame.")
+        return pd.DataFrame()
+
+    def _process_schedule_dataframe(self, schedules_df, with_ids=False):
+        schedules_df['ShiftCategoryId'] = schedules_df['ShiftCategory'].apply(lambda x: x['Id'] if x is not None else None)
+        schedules_df['ShiftCategoryName'] = schedules_df['ShiftCategory'].apply(lambda x: x['Name'] if x is not None else None)
+        schedules_df['ShiftCategoryShortName'] = schedules_df['ShiftCategory'].apply(lambda x: x['ShortName'] if x is not None else None)
+        schedules_df.drop(columns=['ShiftCategory'], inplace=True)
+        schedules_df['DayOffName'] = schedules_df['DayOff'].apply(lambda x: x['Name'] if x is not None else None)
+        schedules_df['AbsenceName'] = schedules_df.apply(self.copy_first_shift_name, axis=1)
+        schedules_df['StartTime'] = schedules_df.apply(lambda x: pd.to_datetime(x['Shift'][0]['Period']['StartTime']) if x['Shift'] else None, axis=1)
+        schedules_df['EndTime'] = schedules_df.apply(lambda x: pd.to_datetime(x['Shift'][-1]['Period']['EndTime']) if x['Shift'] else None, axis=1)
+        schedules_df['Duration'] = schedules_df['EndTime'] - schedules_df['StartTime']
+        schedules_df['Name'] = schedules_df['ShiftCategoryShortName'].fillna(schedules_df['AbsenceName']).fillna(schedules_df['DayOffName'])
+
+        org_info_df = self.people_df[['PersonId', 'BusinessUnitName', 'TeamName','EmploymentNumber', 'Email']]
+        schedules_df = schedules_df.merge(org_info_df, on='PersonId', how='left')
+
+        schedules_df = schedules_df[['BusinessUnitName','TeamName','Date', 'StartTime', 'EndTime', 'Duration', 'Name', 'PersonId', 'Email', 'EmploymentNumber','ShiftCategoryId','ShiftCategoryName','ShiftCategoryShortName','DayOffName','AbsenceName']]
+        schedules_df = schedules_df[~schedules_df['Name'].isna()]
+        if not with_ids:
+            schedules_df.drop(columns=['PersonId','ShiftCategoryId'], inplace=True)
+
+        return schedules_df
+
+    async def get_schedule_by_team_name(self, team_name, start_date, end_date, with_ids=False, as_df=False, max_retries=3):
+        try:
+            teams = self.people_mgr.teams_df
+            team_id = teams[teams['TeamName'] == team_name]['TeamId'].values[0]
+            bu_name = teams[teams['TeamName'] == team_name]['BusinessUnitName'].values[0]
+            bus = self.people_mgr.bus_df
+            bu_id = bus[bus['BusinessUnitName'] == bu_name]['BusinessUnitId'].values[0]
+
+            schedules_df = await self._fetch_schedule_data(team_id, bu_id, start_date, end_date, max_retries)
+
+            if not schedules_df.empty:
+                self.schedules_df = self._process_schedule_dataframe(schedules_df, with_ids)
+
+                if as_df:
+                    return self.schedules_df
+                else:
+                    return self.schedules_df.to_dict('records')
+            else:
+                # print("No data retrieved. Returning an empty list.")
+                return []
+
+        except Exception as error:
+            print(f"Error occurred in get_schedule_by_team_name:", error)
+            return []
+
+    async def get_schedule_by_employment_numbers(self, employment_numbers, start_date, end_date, with_ids=False, as_df=False, date_of_view=None):
+        try:
+            if date_of_view is None:
+                date_of_view = pd.to_datetime('today').strftime('%Y-%m-%d')
+
+            people_res = await self.client.get_people_by_employment_numbers(employment_numbers, date=date_of_view)
+            people = people_res['Result']
+            person_ids = [person['Id'] for person in people]
+
+            schedules_res = await self.client.schedule_by_person_ids(person_ids, start_date, end_date)
+            schedules = schedules_res["Result"]
+            schedules_df = pd.DataFrame(schedules)
+
+            if not schedules_df.empty:
+                self.schedules_df = self._process_schedule_dataframe(schedules_df, with_ids)
+
+                if as_df:
+                    return self.schedules_df
+                else:
+                    return self.schedules_df.to_dict('records')
+            else:
+                print("No data retrieved. Returning an empty list.")
+                return []
+
+        except Exception as error:
+            print("Error occurred in get_schedule_by_employment_numbers:", error)
+            return []
+
+    async def get_all_schedule_activities_in_all_bus(self, start_date, end_date, with_ids=False, as_df=False, with_duration=False, max_concurrent=50):
+        try:
+            # Get a list of unique business unit names
+            bu_names = self.people_mgr.bus_df['BusinessUnitName'].unique()
+            print(f"Fetching schedules for {bu_names} ... Please note that this list includes only the business units that have been set in the People Instance associated with this instance")
+
+            # Initialize a list to store schedule activities
+            schedule_activities = []
+
+            # Fetch schedule activities one by one
+            for bu_name in bu_names:
+                result = await self.get_schedule_activities_by_bu_name(bu_name, start_date, end_date, with_ids, as_df=True, with_duration=with_duration, max_concurrent=max_concurrent)
+                if isinstance(result, pd.DataFrame):
+                    schedule_activities.append(result)
+
+            # Consolidate schedule activities into a single DataFrame if needed
+            if as_df:
+                if schedule_activities:
+                    return pd.concat(schedule_activities, ignore_index=True)
+                else:
+                    return pd.DataFrame()
+            else:
+                return schedule_activities
+
+        except Exception as error:
+            # If an error occurs during the process, print the error and return an empty list.
+            print("Error occurred in get_all_schedule_activities_in_all_bus:", error)
+            return []
+
+    async def get_schedule_activities_by_bu_name(self, bu_name, start_date, end_date, with_ids=False, as_df=False, with_duration=False, max_concurrent=50):
+        try:
+            # Fetch schedules for the specified team and date range.
+            team_names = self.people_mgr.teams_df[self.people_mgr.teams_df['BusinessUnitName'] == bu_name]['TeamName'].values
+
+            # Initialize a list to store DataFrames
+            schedule_activities_dfs = []
+
+            # Create a list of coroutine tasks
+            tasks = [
+                self.get_schedule_activities_by_team_name(team_name, start_date, end_date, with_ids, as_df=True, with_duration=with_duration)
+                for team_name in team_names
+                ]
+
+            # Create a semaphore to limit concurrent tasks
+            semaphore = asyncio.Semaphore(max_concurrent)
+
+            # Create a custom progress bar
+            desc = f"Fetching schedules for {bu_name}"
+            pbar = tqdm(total=len(tasks), desc=desc)
+
+            async def track_progress(task):
+                async with semaphore:
+                    # Await the task and get the DataFrame result
+                    result_df = await task
+                    if not len(result_df) == 0:
+                        schedule_activities_dfs.append(result_df)
+                    pbar.update(1)
+
+            # Fetch schedule activities concurrently while tracking progress
+            await asyncio.gather(*(track_progress(task) for task in tasks))
+
+            pbar.close()  # Close the progress bar
+
+            # Concatenate all DataFrames into a single DataFrame
+            if schedule_activities_dfs:
+                self.schedule_activities_df = pd.concat(schedule_activities_dfs, ignore_index=True)
+            else:
+                self.schedule_activities_df = pd.DataFrame()
+
+            return self.schedule_activities_df
+
+        except Exception as error:
+            # If an error occurs during the process, print the error and return an empty DataFrame.
+            print("Error occurred in get_schedule_activities_by_bu_name:", error)
+            return pd.DataFrame()
+
+    async def get_schedule_activities(self, schedules, with_ids=False, as_df=False, with_duration=False):
+        try:
+            schedule_activities = []
+
+            for schedule in schedules:
+                if "Shift" in schedule:
+                    for activity in schedule["Shift"]:
+                        activity["PersonId"] = schedule["PersonId"]
+                        activity["Date"] = schedule["Date"]
+                        schedule_activities.append(activity)
+                else:
+                    continue
+        
+            if len(schedule_activities) == 0:
+                return []
+
+
+            schedule_activities_df = pd.DataFrame(schedule_activities)
+            schedule_activities_df.rename(columns={'Name': 'ActivityName'}, inplace=True)
+            schedule_activities_df['StartTime'] = schedule_activities_df['Period'].apply(lambda x: pd.to_datetime(x['StartTime']))
+            schedule_activities_df['EndTime'] = schedule_activities_df['Period'].apply(lambda x: pd.to_datetime(x['EndTime']))
+            schedule_activities_df.drop(columns=['Period'], inplace=True)
+
+            org_info_df = self.people_df[['PersonId', 'BusinessUnitName', 'TeamName','EmploymentNumber', 'Email']]
+
+            schedule_activities_df = schedule_activities_df.merge(org_info_df, on='PersonId', how='left')
+
+            
+            if with_duration:
+                schedule_activities_df['Duration'] = schedule_activities_df['EndTime'] - schedule_activities_df['StartTime']
+                schedule_activities_df = schedule_activities_df[['BusinessUnitName','TeamName','Date', 'StartTime', 'EndTime', 'Duration', 'ActivityName', 'PersonId', 'Email', 'EmploymentNumber', 'Overtime','ActivityId','AbsenceId']]
+            else:
+                schedule_activities_df = schedule_activities_df[['BusinessUnitName','TeamName','Date', 'StartTime', 'EndTime', 'ActivityName', 'PersonId', 'Email', 'EmploymentNumber', 'Overtime','ActivityId','AbsenceId']]
+
+            if not with_ids:
+                schedule_activities_df.drop(columns=['PersonId','ActivityId','AbsenceId'], inplace=True)
+
+            if as_df:
+                return schedule_activities_df
+            else:
+                return schedule_activities_df.to_dict('records')
+
+        except Exception as error:
+            print("Error occurred:", error)
+            return []
+
+    async def get_schedule_activities_by_team_name(self, team_name, start_date, end_date, with_ids=False, as_df=False, with_duration=False, max_retries=3):
+        retries = 0
+
+        while retries < max_retries:
+            try:
+                teams = self.people_mgr.teams_df
+                team_id = teams[teams['TeamName'] == team_name]['TeamId'].values[0]
+                bu_name = teams[teams['TeamName'] == team_name]['BusinessUnitName'].values[0]
+                bus = self.people_mgr.bus_df
+                bu_id = bus[bus['BusinessUnitName'] == bu_name]['BusinessUnitId'].values[0]
+
+                schedules_res = await self.client.get_schedule_by_team_id(bu_id, team_id, start_date, end_date)
+                schedules = schedules_res["Result"]
+                self.schedules = schedules
+
+                return await self.get_schedule_activities(schedules, with_ids, as_df, with_duration)
+
+            except Exception as error:
+                print(f"Error occurred in get_schedule_activities_by_team_name (Attempt {retries + 1}/{max_retries}):", error)
+                retries += 1
+                if retries < max_retries:
+                    # Calculate the wait time using exponential backoff (e.g., 2^retry_count seconds)
+                    wait_time = 2 ** retries
+                    print(f"Retrying in {wait_time} seconds...")
+                    await asyncio.sleep(wait_time)
+
+        print("Maximum number of retries reached. Returning an empty list.")
+        return []
+
+    async def get_schedule_activities_by_employment_numbers(self, employment_numbers, start_date, end_date, with_ids=False, as_df=False, date_of_view=None, with_duration=False):
+        try:
+            if date_of_view is None:
+                date_of_view = pd.to_datetime('today').strftime('%Y-%m-%d')
+
+            people_res = await self.client.get_people_by_employment_numbers(employment_numbers, date=date_of_view)
+            people = people_res['Result']
+            person_ids = [person['Id'] for person in people]
+
+            schedules_res = await self.client.schedule_by_person_ids(person_ids, start_date, end_date)
+            schedules = schedules_res["Result"]
+            self.schedules = schedules
+
+            return await self.get_schedule_activities(schedules, with_ids, as_df, with_duration)
+
+        except Exception as error:
+            print("Error occurred in get_schedule_activities_by_employment_numbers:", error)
+            return []
+
+    def count_overtime_hours_by_name(self, df, overtime_name):
+        df = df[df['Overtime'] == overtime_name]
+        df['Duration'] = df['EndTime'] - df['StartTime']
+        df['Duration'] = df['Duration'].apply(lambda x: x.total_seconds()/3600)
+
+        # group by person
+        df = df.groupby(['BusinessUnitName','TeamName','EmploymentNumber','Email']).sum().reset_index()
+        return df
+    
+
