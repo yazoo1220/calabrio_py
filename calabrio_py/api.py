@@ -840,13 +840,13 @@ class ApiClientBase:
         }
         return self.post(url, request_data)
 
-    def get_schedule_absences_by_person_ids(self, person_ids, period, scenario_id=None):
+    def get_schedule_absences_by_person_ids(self, person_ids, start_date, end_date, scenario_id=None):
         url = f"{self.base_url}/query/ScheduleAbsence/ScheduleAbsencesByPersonIds"
         request_data = {
             "PersonIds": person_ids,
             "Period": {
-                "StartDate": period["startDate"],
-                "EndDate": period["endDate"]
+                "StartDate": start_date,
+                "EndDate": end_date
             },
             "ScenarioId": scenario_id
         }
@@ -953,14 +953,14 @@ class ApiClientBase:
         }
         return self.post(url, request_data)
 
-    def get_skill_groups(self, business_unit_id):
+    def get_all_skill_groups(self, business_unit_id):
         url = f"{self.base_url}/query/SkillGroup/AllSkillGroups"
         request_data = {
             "BusinessUnitId": business_unit_id
         }
         return self.post(url, request_data)
 
-    def get_staffing_by_skills(self, business_unit_id, skill_ids, start_time, end_time):
+    def get_all_staffing_by_skills(self, business_unit_id, skill_ids, start_time, end_time):
         url = f"{self.base_url}/query/Staffing/StaffingBySkills"
         request_data = {
             "BusinessUnitId": business_unit_id,
