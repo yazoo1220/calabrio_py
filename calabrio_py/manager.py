@@ -78,6 +78,10 @@ import pandas as pd
 import json
 
 
+import pandas as pd
+import json
+
+
 class PeopleManager:
     '''
     This class is used to fetch the people data from the API and merge it with the config data.
@@ -87,6 +91,7 @@ class PeopleManager:
         self.client = client
         self.business_units = []
         self.people = []
+        self.people_df = pd.DataFrame()
         self.sites = []
         self.teams = []
         self.absences = []
@@ -135,7 +140,7 @@ class PeopleManager:
 
         return flatten_all_people
 
-    async def fetch_all_people(self, date=None, include_eoy=False, with_ids=True, as_df=True, exclude_bu_names=[]):
+    async def fetch_all_people(self, date=None, include_eoy=False, with_ids=False, as_df=True, exclude_bu_names=[]):
         if self.config_data is None:
             await self.fetch_config_data(exclude_bu_names=exclude_bu_names) if self.client.set_async else self.fetch_config_data(exclude_bu_names=exclude_bu_names)
 
@@ -190,6 +195,39 @@ class PeopleManager:
 
         return self.people_df
 
+    async def fetch_people_by_employment_numbers(self, employment_numbers, date=None):
+        if self.config_data is None:
+            await self.fetch_config_data()
+            
+        if date is None:
+            date = pd.to_datetime('today').strftime('%Y-%m-%d')
+
+        people_res = await self.client.get_people_by_employment_numbers(employment_numbers, date)
+        people = people_res['Result']
+        people_df = pd.DataFrame(people)
+
+        # people_df = self.merge_and_filter_config_data(people_df)
+
+        return people_df
+
+    # async def fetch_people_by_team_names(self, team_names):
+    #     if self.config_data is None:
+    #         await self.fetch_config_data()
+    #     if len(self.people_df) == 0:
+    #         await self.fetch_all_people()
+
+    #     people_df = self.people_df[self.people_df['TeamName'].isin(team_names)]
+    #     return people_df
+
+    # async def fetch_people_by_bu_names(self, bu_names):
+    #     if self.config_data is None:
+    #         await self.fetch_config_data()
+    #     if len(self.people_df) == 0:
+    #         await self.fetch_all_people()
+
+    #     people_df = self.people_df[self.people_df['BusinessUnitName'].isin(bu_names)]
+    #     return people_df
+
     def merge_and_clean_data(self, people_df):
         # Concatenate and clean up the data
         people_df = people_df.drop_duplicates(
@@ -206,7 +244,7 @@ class PeopleManager:
         self.sites_df.rename(columns={'Id': 'SiteId', 'Name': 'SiteName'}, inplace=True)
 
         self.teams_df = pd.concat(self.teams)
-        self.teams_df.rename(columns={'Id': 'TeamId', 'Name': 'SiteTeamName'}, inplace=True)
+        self.teams_df.rename(columns={'Id': 'TeamId', 'Name': 'TeamName'}, inplace=True)
 
         self.contracts_df = pd.concat(self.contracts)
         self.contracts_df.rename(columns={'Id': 'ContractId', 'Name': 'ContractName'}, inplace=True)
@@ -258,11 +296,20 @@ class PeopleManager:
         data_to_add['BusinessUnitName'] = bu_name
         data_list.append(data_to_add)
 
-    def merge_and_filter_config_data(self):
-        self.people_df['BusinessUnitName'] = self.people_df['BusinessUnitName'].astype(str)
-        self.people_df['RoleId'] = self.people_df['Roles'].apply(lambda x: self.get_first_role_id(x))
+    def merge_and_filter_config_data(self, people_df=None):
+        if people_df is None:
+            people_df = self.people_df
+        if len(self.sites) == 0:
+            business_units = self.config_data['bus']
+            bus_df = pd.DataFrame(business_units)
+            bu_names = [bu['Name'] for bu in business_units]
+            [self.fetch_config_data_for_business_unit(bu['Name'])  for bu in business_units]
+            self.fetch_config_data_as_df()
+        people_df['BusinessUnitName'] = bus_df[bus_df['BusinessUnitId']==people_df['BusinessUnitId']]['BusinessUnitName'].values[0]
+        people_df['BusinessUnitName'] = people_df['BusinessUnitName'].astype(str)
+        people_df['RoleId'] = people_df['Roles'].apply(lambda x: self.get_first_role_id(x))
         
-        tmp_df = self.people_df.merge(
+        tmp_df = people_df.merge(
             self.sites_df, on=['SiteId', 'BusinessUnitName'], how='left')
         tmp_df = tmp_df.merge(self.teams_df, on=[
                               'TeamId', 'SiteId', 'SiteName', 'BusinessUnitName'], how='left')
@@ -290,10 +337,14 @@ class PeopleManager:
         people_df = people_df.merge(self.contract_schedules_df, on=['ContractScheduleName','BusinessUnitName'], how='left') if 'ContractScheduleId' not in people_df.columns else people_df
         people_df = people_df.merge(self.workflow_control_sets_df, on=['WorkflowControlSetName','BusinessUnitName'], how='left') if 'WorkflowControlSetId' not in people_df.columns else people_df
         people_df = people_df.merge(self.part_time_percentages_df, on=['PartTimePercentageName','BusinessUnitName'], how='left') if 'PartTimePercentageId' not in people_df.columns else people_df
-        people_df = people_df.merge(self.shift_bags_df, on=['ShiftBagName','BusinessUnitName'], how='left') if 'ShiftBagId' not in people_df.columns else people_df
-        people_df = people_df.merge(self.budget_groups_df, on=['BudgetGroupName','BusinessUnitName'], how='left') if 'BudgetGroupId' not in people_df.columns else people_df
-        people_df = people_df.merge(self.shift_categories_df, on=['ShiftCategoryName','BusinessUnitName'], how='left') if 'ShiftCategoryId' not in people_df.columns else people_df
-        people_df = people_df.merge(self.scenarios_df, on=['ScenarioName','BusinessUnitName'], how='left') if 'ScenarioId' not in people_df.columns else people_df
+        if ShiftBagName in people_df.columns:
+            people_df = people_df.merge(self.shift_bags_df, on=['ShiftBagName','BusinessUnitName'], how='left') if 'ShiftBagId' not in people_df.columns else people_df
+        if BudgetGroupName in people_df.columns:
+            people_df = people_df.merge(self.budget_groups_df, on=['BudgetGroupName','BusinessUnitName'], how='left') if 'BudgetGroupId' not in people_df.columns else people_df
+        if ShiftCategoryName in people_df.columns:
+            people_df = people_df.merge(self.shift_categories_df, on=['ShiftCategoryName','BusinessUnitName'], how='left') if 'ShiftCategoryId' not in people_df.columns else people_df
+        if ScenarioName in people_df.columns:
+            people_df = people_df.merge(self.scenarios_df, on=['ScenarioName','BusinessUnitName'], how='left') if 'ScenarioId' not in people_df.columns else people_df
 
         for person in people_df.to_dict(orient='records'):
             person_request = self.client.AddPersonRequest(
@@ -321,7 +372,90 @@ class PeopleManager:
             log.append(res)
         
         return log
-    
+
+    async def _switch_person_accessibility(self, person, date=None, is_recover=False):
+        log_entry = []
+        now = pd.to_datetime('today').strftime('%Y-%m-%d %H:%M:%S')
+
+        try:
+            if person['TerminationDate'] is not None:
+                first_name = person['FirstName']
+                last_name = person['LastName']
+                email = "xxx" + (person['Email'] or "@transferwise.com")
+                workflow_control_set_id = person['WorkflowControlSetId']
+                note = person['Note']
+                employment_number = "D" + (person['EmploymentNumber'] or "")
+                identity = None  # "xxx" + (person['Identity'] or "@transferwise.com")
+
+                if is_recover:
+                    # If recovering, replace 'xxx' and 'D' with empty strings
+                    email = email.replace('xxx', '')
+                    employment_number = employment_number.replace('D', '')
+
+                remove_res = await self.client.set_details_for_person(
+                    person_id=person['Id'],
+                    first_name=first_name,
+                    last_name=last_name,
+                    email=email,
+                    workflow_control_set_id=workflow_control_set_id,
+                    note=note,
+                    employment_number=employment_number,
+                    identity=identity,
+                )
+                log_entry = [now, person['EmploymentNumber'], person['Email'], person, remove_res, True]
+            else:
+                print(f"{person['Email']} in {person['BusinessUnitId']} is not terminated")
+        except Exception as e:
+            error_message = f"Error processing person with ID {person['Id']}: {str(e)}"
+            log_entry = [now, person['EmploymentNumber'], person['Email'], person, error_message, False]
+
+        return log_entry
+
+    async def remove_people_by_employment_numbers(self, employment_numbers, date=None):
+        log = []
+        if date is None:
+            date = pd.to_datetime('today').strftime('%Y-%m-%d')
+
+        try:
+            people_res = await self.client.get_people_by_employment_numbers(employment_numbers=employment_numbers, date=date)
+            people = people_res['Result']
+
+            for person in people:
+                log_entry = await self._switch_person_accessibility(person)
+                log.append(log_entry)
+        except Exception as e:
+            log.append([now, person['EmploymentNumber'], person['Email'], person, e, False])
+
+        return log
+
+    async def recover_people_by_employment_numbers(self, employment_numbers, date=None):
+        log = []
+        if date is None:
+            date = pd.to_datetime('today').strftime('%Y-%m-%d')
+
+        try:
+            people_res = await self.client.get_people_by_employment_numbers(employment_numbers=employment_numbers, date=date)
+            people = people_res['Result']
+
+            for person in people:
+                log_entry = await self._switch_person_accessibility(person, is_recover=True)
+                log.append(log_entry)
+        except Exception as e:
+            log.append([now, person['EmploymentNumber'], person['Email'], person, e, False])
+
+        return log
+
+    async def set_termination_date_by_employment_number(self, employment_number, termination_date):
+        # get person_id by employment_number
+        people_res = await self.client.get_people_by_employment_numbers(employment_numbers=[employment_number])
+        people = people_res['Result']
+        person_id = people[0]['Id']
+
+        # set termination date
+        res = await self.client.set_leaving_date_for_person(person_id,termination_date)
+
+        return res
+     
 
 class PersonAccountsManager:
     def __init__(self, people_mgr=None, client=None, people_df=None, config_data=None):
