@@ -82,6 +82,10 @@ import pandas as pd
 import json
 
 
+import pandas as pd
+import json
+
+
 class PeopleManager:
     '''
     This class is used to fetch the people data from the API and merge it with the config data.
@@ -301,11 +305,11 @@ class PeopleManager:
             people_df = self.people_df
         if len(self.sites) == 0:
             business_units = self.config_data['bus']
-            bus_df = pd.DataFrame(business_units)
+            self.bus_df = pd.DataFrame(business_units)
             bu_names = [bu['Name'] for bu in business_units]
             [self.fetch_config_data_for_business_unit(bu['Name'])  for bu in business_units]
             self.fetch_config_data_as_df()
-        people_df['BusinessUnitName'] = bus_df[bus_df['BusinessUnitId']==people_df['BusinessUnitId']]['BusinessUnitName'].values[0]
+        people_df['BusinessUnitName'] = self.bus_df[self.bus_df['BusinessUnitId']==people_df['BusinessUnitId']]['BusinessUnitName'].values[0]
         people_df['BusinessUnitName'] = people_df['BusinessUnitName'].astype(str)
         people_df['RoleId'] = people_df['Roles'].apply(lambda x: self.get_first_role_id(x))
         
@@ -455,7 +459,8 @@ class PeopleManager:
         res = await self.client.set_leaving_date_for_person(person_id,termination_date)
 
         return res
-     
+    
+        
 
 class PersonAccountsManager:
     def __init__(self, people_mgr=None, client=None, people_df=None, config_data=None):
