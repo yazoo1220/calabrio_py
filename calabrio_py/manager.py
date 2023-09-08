@@ -2,6 +2,7 @@ import pandas as pd
 import json
 import asyncio
 from tqdm import tqdm
+import logging
 
 class ConfigManager:
     '''
