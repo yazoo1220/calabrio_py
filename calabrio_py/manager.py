@@ -135,7 +135,7 @@ class PeopleManager:
 
         return flatten_all_people
 
-    async def fetch_all_people(self, date=None, include_eoy=False, with_ids=False, as_df=True, exclude_bu_names=[]):
+    async def fetch_all_people(self, date=None, include_eoy=False, with_ids=True, as_df=True, exclude_bu_names=[]):
         if self.config_data is None:
             await self.fetch_config_data(exclude_bu_names=exclude_bu_names) if self.client.set_async else self.fetch_config_data(exclude_bu_names=exclude_bu_names)
 
