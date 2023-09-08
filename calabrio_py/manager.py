@@ -357,28 +357,68 @@ class PersonAccountsManager:
         self.absences_df.rename(
             columns={'Id': 'AbsenceId', 'Name': 'AbsenceName'}, inplace=True)
 
-    async def fetch_person_accounts(self, date=None, people_df=None, client=None, with_id=False, details=False):
+    async def fetch_and_process_chunk(self, client, chunk, date, max_retry, max_concurrent):
+        semaphore = asyncio.Semaphore(max_concurrent)
+        person_accounts_with_id = []
+
+        async def fetch_single_person_account(business_unit_id, person_id, date):
+            for retry in range(max_retry):
+                try:
+                    person_accounts = await client.get_person_accounts_by_person_id(business_unit_id, person_id, date)
+                    # Extract the 'Result' list and add 'PersonId' to each dictionary
+                    results = [{'PersonId': person_id, **account} for account in person_accounts.get('Result', [])]
+                    return results
+                except Exception as e:
+                    # Handle any exceptions here, e.g., log an error
+                    logging.error(f"Error while processing PersonId {person_id}: {e}")
+                    if retry == max_retry - 1:
+                        return []  # Return an empty list to indicate a failure
+
+                    await asyncio.sleep(10 ** retry)  # Exponential back-off
+
+        fetch_tasks = [
+            asyncio.ensure_future(fetch_single_person_account(person_tuple['BusinessUnitId'], person_tuple['PersonId'], date))
+            for _, person_tuple in chunk.iterrows()
+        ]
+
+        async def process_results():
+            for fetched_account in asyncio.as_completed(fetch_tasks):
+                async with semaphore:
+                    account_data = await fetched_account
+                    if account_data:
+                        person_accounts_with_id.extend(account_data)
+
+        await process_results()
+        return person_accounts_with_id
+
+    async def fetch_person_accounts(self, date=None, people_df=None, client=None, with_id=False, details=False, max_retry=10, max_concurrent=200):
         if people_df is None:
             people_df = self.people_df
+
         if client is None:
             client = self.client
-        # if date is None, then today
+
         if date is None:
             date = pd.to_datetime('today').strftime('%Y-%m-%d')
 
         person_accounts_with_id = []
-        for index, person_tuple in people_df.iterrows():
-            person_id = person_tuple['PersonId']
-            person_accounts = await client.get_person_accounts_by_person_id(person_tuple['BusinessUnitId'], person_id, date)
-            person_accounts_result = person_accounts['Result']
-            for account in person_accounts_result:
-                account_with_person_id = {'PersonId': person_id, **account}
-                person_accounts_with_id.append(account_with_person_id)
 
-        # flatten person_accounts
-        # flattened_person_accounts = [account for accounts in person_accounts_with_id for account in accounts]
-        # print(flattened_person_accounts)
+        # Split people_df into chunks
+        chunk_size = 200
+        num_chunks = len(people_df) // chunk_size + 1
+
+        # Use tqdm to display a progress bar for chunks
+        for chunk_index in tqdm(range(num_chunks), desc="Processing Chunks"):
+            chunk_start = chunk_index * chunk_size
+            chunk_end = (chunk_index + 1) * chunk_size
+            chunk = people_df.iloc[chunk_start:chunk_end]
+
+            # Fetch and process each chunk asynchronously
+            chunk_results = await self.fetch_and_process_chunk(client, chunk, date, max_retry, max_concurrent)
+            person_accounts_with_id.extend(chunk_results)
+
         person_accounts_df = pd.DataFrame(person_accounts_with_id)
+
 
         # using people_df, add peoples' email and employment number to person_accounts on person_id
         person_accounts_df = person_accounts_df.merge(
@@ -409,16 +449,41 @@ class PersonAccountsManager:
 
         return person_accounts_df
 
-    async def fetch_person_accounts_by_employment_numbers(self, employment_numbers, date=None, with_id=False, details=False):
+    async def fetch_person_accounts_by_bu_names(self, bu_names, date=None, with_id=False, details=False, max_concurrent=50):
+        if date is None:
+            date = pd.to_datetime('today').strftime('%Y-%m-%d')
+
+        people_df = self.people_df[self.people_df['BusinessUnitName'].isin(bu_names)]
+        person_accounts_df = await self.fetch_person_accounts(date, people_df, with_id=with_id, details=details, max_concurrent=max_concurrent)
+        return person_accounts_df 
+    
+    async def fetch_person_accounts_by_team_names(self, team_names, date=None, with_id=False, details=False, max_concurrent=50):
+        if date is None:
+            date = pd.to_datetime('today').strftime('%Y-%m-%d')
+            
+        people_df = self.people_df[self.people_df['TeamName'].isin(team_names)]
+        person_accounts_df = await self.fetch_person_accounts(date, people_df, with_id=with_id, details=details, max_concurrent=max_concurrent)
+        return person_accounts_df 
+
+    async def fetch_person_accounts_by_contract_names(self, contract_names, date=None, with_id=False, details=False, max_concurrent=50):
+        if date is None:
+            date = pd.to_datetime('today').strftime('%Y-%m-%d')
+            
+        people_df = self.people_df[self.people_df['ContractName'].isin(contract_names)]
+        person_accounts_df = await self.fetch_person_accounts(date, people_df, with_id=with_id, details=details, max_concurrent=max_concurrent)
+        return person_accounts_df 
+
+    async def fetch_person_accounts_by_employment_numbers(self, employment_numbers, date=None, with_id=False, details=False, max_concurrent=50):
         if date is None:
             date = pd.to_datetime('today').strftime('%Y-%m-%d')
 
         people_df = self.people_df[self.people_df['EmploymentNumber'].isin(
             employment_numbers)]
-        person_accounts_df = await self.fetch_person_accounts(date, people_df, with_id=with_id, details=details)
+        person_accounts_df = await self.fetch_person_accounts(date, people_df, with_id=with_id, details=details,max_concurrent=max_concurrent)
+        person_accounts_df = person_accounts_df[['BusinessUnitName','ContractName','EmploymentNumber','Email','AbsenceName','StartDate','EndDate','BalanceIn','Extra','Accrued','Used','Remaining','BalanceOut','TrackedBy','PersonId','AbsenceId']]
         return person_accounts_df
 
-    async def add_or_update_person_accouts_by_employment_number_and_absence_name(self, employment_number, absence_name, balance_in=None, extra=None, accrued=None):
+    async def add_or_update_person_accouts_by_employment_numbers_and_absence_name(self, employment_numbers, absence_name, balance_in=None, extra=None, accrued=None):
         if not hasattr(self, 'absences_df'):
             await self.fetch_config_data()
             await self.fetch_config_data_as_df()
@@ -431,7 +496,8 @@ class PersonAccountsManager:
         absence_id = self.absences_df[(self.absences_df['AbsenceName'] == absence_name)]['AbsenceId'].tolist()[0]
 
         # find existing person account for this person and absence
-
+        person_accounts = self.fetch_person_accounts_by_employment_numbers([employment_number], with_id=True)
+        person_account = person_accounts[(person_accounts['AbsenceName'] == absence_name)][0]
 
         # add PersonId and AbsenceId using people_df and self.absence_df if not present
         if 'PersonId' not in person_accounts[0].keys() or 'AbsenceId' not in person_accounts[0].keys():
