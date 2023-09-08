@@ -332,14 +332,14 @@ class PeopleManager:
         people_df = people_df.merge(self.contract_schedules_df, on=['ContractScheduleName','BusinessUnitName'], how='left') if 'ContractScheduleId' not in people_df.columns else people_df
         people_df = people_df.merge(self.workflow_control_sets_df, on=['WorkflowControlSetName','BusinessUnitName'], how='left') if 'WorkflowControlSetId' not in people_df.columns else people_df
         people_df = people_df.merge(self.part_time_percentages_df, on=['PartTimePercentageName','BusinessUnitName'], how='left') if 'PartTimePercentageId' not in people_df.columns else people_df
-        if ShiftBagName in people_df.columns:
-            people_df = people_df.merge(self.shift_bags_df, on=['ShiftBagName','BusinessUnitName'], how='left') if 'ShiftBagId' not in people_df.columns else people_df
-        if BudgetGroupName in people_df.columns:
-            people_df = people_df.merge(self.budget_groups_df, on=['BudgetGroupName','BusinessUnitName'], how='left') if 'BudgetGroupId' not in people_df.columns else people_df
-        if ShiftCategoryName in people_df.columns:
-            people_df = people_df.merge(self.shift_categories_df, on=['ShiftCategoryName','BusinessUnitName'], how='left') if 'ShiftCategoryId' not in people_df.columns else people_df
-        if ScenarioName in people_df.columns:
-            people_df = people_df.merge(self.scenarios_df, on=['ScenarioName','BusinessUnitName'], how='left') if 'ScenarioId' not in people_df.columns else people_df
+        # if ShiftBagName in people_df.columns:
+        #     people_df = people_df.merge(self.shift_bags_df, on=['ShiftBagName','BusinessUnitName'], how='left') if 'ShiftBagId' not in people_df.columns else people_df
+        # if BudgetGroupName in people_df.columns:
+        #     people_df = people_df.merge(self.budget_groups_df, on=['BudgetGroupName','BusinessUnitName'], how='left') if 'BudgetGroupId' not in people_df.columns else people_df
+        # if ShiftCategoryName in people_df.columns:
+        #     people_df = people_df.merge(self.shift_categories_df, on=['ShiftCategoryName','BusinessUnitName'], how='left') if 'ShiftCategoryId' not in people_df.columns else people_df
+        # if ScenarioName in people_df.columns:
+        #     people_df = people_df.merge(self.scenarios_df, on=['ScenarioName','BusinessUnitName'], how='left') if 'ScenarioId' not in people_df.columns else people_df
 
         for person in people_df.to_dict(orient='records'):
             person_request = self.client.AddPersonRequest(
