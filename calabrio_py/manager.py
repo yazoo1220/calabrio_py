@@ -303,13 +303,13 @@ class PeopleManager:
     def merge_and_filter_config_data(self, people_df=None):
         if people_df is None:
             people_df = self.people_df
-        if len(self.sites) == 0:
-            business_units = self.config_data['bus']
-            self.bus_df = pd.DataFrame(business_units)
-            bu_names = [bu['Name'] for bu in business_units]
-            [self.fetch_config_data_for_business_unit(bu['Name'])  for bu in business_units]
-            self.fetch_config_data_as_df()
-        people_df['BusinessUnitName'] = self.bus_df[self.bus_df['Id']==people_df['BusinessUnitId']]['Name'].values[0]
+        # if len(self.sites) == 0:
+        #     business_units = self.config_data['bus']
+        #     self.bus_df = pd.DataFrame(business_units)
+        #     bu_names = [bu['Name'] for bu in business_units]
+        #     [self.fetch_config_data_for_business_unit(bu['Name'])  for bu in business_units]
+        #     self.fetch_config_data_as_df()
+        # people_df['BusinessUnitName'] = self.bus_df[self.bus_df['Id']==people_df['BusinessUnitId']]['Name'].values[0]
         people_df['BusinessUnitName'] = people_df['BusinessUnitName'].astype(str)
         people_df['RoleId'] = people_df['Roles'].apply(lambda x: self.get_first_role_id(x))
         
