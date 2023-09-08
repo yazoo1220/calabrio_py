@@ -342,7 +342,7 @@ class PeopleManager:
         #     people_df = people_df.merge(self.scenarios_df, on=['ScenarioName','BusinessUnitName'], how='left') if 'ScenarioId' not in people_df.columns else people_df
 
         for person in people_df.to_dict(orient='records'):
-            person_request = self.client.AddPersonRequest(
+            person_request = self.client.add_person(
                 TimeZoneId = person['TimeZoneId'],
                 BusinessUnitId = person['BusinessUnitId'],
                 FirstName = person['FirstName'],
