@@ -2,7 +2,6 @@ import pandas as pd
 import json
 import asyncio
 from tqdm import tqdm
-import logging
 
 class ConfigManager:
     '''
@@ -371,7 +370,7 @@ class PersonAccountsManager:
                     return results
                 except Exception as e:
                     # Handle any exceptions here, e.g., log an error
-                    logging.error(f"Error while processing PersonId {person_id}: {e}")
+                    print(f"Error while processing PersonId {person_id}: {e}")
                     if retry == max_retry - 1:
                         return []  # Return an empty list to indicate a failure
 
