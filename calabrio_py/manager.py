@@ -309,7 +309,7 @@ class PeopleManager:
             bu_names = [bu['Name'] for bu in business_units]
             [self.fetch_config_data_for_business_unit(bu['Name'])  for bu in business_units]
             self.fetch_config_data_as_df()
-        people_df['BusinessUnitName'] = self.bus_df[self.bus_df['BusinessUnitId']==people_df['BusinessUnitId']]['BusinessUnitName'].values[0]
+        people_df['BusinessUnitName'] = self.bus_df[self.bus_df['Id']==people_df['BusinessUnitId']]['Name'].values[0]
         people_df['BusinessUnitName'] = people_df['BusinessUnitName'].astype(str)
         people_df['RoleId'] = people_df['Roles'].apply(lambda x: self.get_first_role_id(x))
         
