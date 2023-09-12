@@ -75,22 +75,6 @@ class ConfigManager:
             return self.config_data
 
 
-import pandas as pd
-import json
-
-
-import pandas as pd
-import json
-
-
-import pandas as pd
-import json
-
-
-import pandas as pd
-import json
-from calabrio_api import AddPersonRequest
-
 class PeopleManager:
     '''
     This class is used to fetch the people data from the API and merge it with the config data.
@@ -504,7 +488,7 @@ class PersonAccountsManager:
                     return results
                 except Exception as e:
                     # Handle any exceptions here, e.g., log an error
-                    logging.error(f"Error while processing PersonId {person_id}: {e}")
+                    print(f"Error while processing PersonId {person_id}: {e}")
                     if retry == max_retry - 1:
                         return []  # Return an empty list to indicate a failure
 
