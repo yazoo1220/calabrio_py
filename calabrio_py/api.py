@@ -64,6 +64,10 @@ class SetSchedulesForPersonOptions:
         self.personId = personId
         self.scenarioId = scenarioId
 
+class CustomApiException(Exception):
+    def __init__(self, message):
+        self.message = message
+
 
 class ApiClientBase:
     def __init__(self, base_url, api_key):
@@ -75,35 +79,46 @@ class ApiClientBase:
         self.is_async = async_mode
 
     def make_request_sync(self, method, url, **kwargs):
-        response = requests.request(method, url, **kwargs)
         try:
+            response = requests.request(method, url, **kwargs)  
             response.raise_for_status()
-            response_json = response.json()
         except requests.exceptions.HTTPError as e:
-            # If there's an HTTP error, raise a custom exception with details
-            error_messages = []
+            logger.error("HTTP Error: %s", str(e))
+            return None
+
+        try:  
             response_json = response.json()
-            if "Errors" in response_json:
-                errors = response_json["Errors"]
-                error_messages = [error["Message"] for error in errors]
-            raise CustomApiException(f"HTTP Error: {e}\n" + "\n".join(error_messages))
         except ValueError as e:
-            # Handle invalid JSON response
-            raise CustomApiException(f"Invalid JSON Response: {e}")
+            logger.error("Invalid JSON: %s", str(e))
+            return None
+
+        if "Errors" in response_json:
+            errors = response_json["Errors"]
+            error_messages = [error["Message"] for error in errors]
+            logger.error("API Errors: %s", "\n".join(error_messages))
 
         return response_json
+
 
     async def make_request_async(self, method, url, **kwargs):
         async with aiohttp.ClientSession(headers={"Authorization": f"Bearer {self.api_key}"}) as session:
             async with session.request(method, url, **kwargs) as response:
-                response.raise_for_status()
-                response_json = await response.json()
+                try:
+                    response.raise_for_status()
+                except Exception as e:
+                    logger.error("HTTP Error: %s", str(e))
+                    return None
 
-                if "Errors" in response_json:
-                    # If there are errors in the response, raise a custom exception
+                try:
+                    response_json = await response.json()  
+                except ValueError as e:
+                    logger.error("Invalid JSON: %s", str(e))
+                    return None
+
+                if len(response_json['Errors'])>0:
                     errors = response_json["Errors"]
                     error_messages = [error["Message"] for error in errors]
-                    raise CustomApiException("\n".join(error_messages))
+                    logger.error("API Errors: %s", "\n".join(error_messages))
 
                 return response_json
 
