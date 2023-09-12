@@ -76,14 +76,36 @@ class ApiClientBase:
 
     def make_request_sync(self, method, url, **kwargs):
         response = requests.request(method, url, **kwargs)
-        response.raise_for_status()
-        return response.json()
+        try:
+            response.raise_for_status()
+            response_json = response.json()
+        except requests.exceptions.HTTPError as e:
+            # If there's an HTTP error, raise a custom exception with details
+            error_messages = []
+            response_json = response.json()
+            if "Errors" in response_json:
+                errors = response_json["Errors"]
+                error_messages = [error["Message"] for error in errors]
+            raise CustomApiException(f"HTTP Error: {e}\n" + "\n".join(error_messages))
+        except ValueError as e:
+            # Handle invalid JSON response
+            raise CustomApiException(f"Invalid JSON Response: {e}")
+
+        return response_json
 
     async def make_request_async(self, method, url, **kwargs):
         async with aiohttp.ClientSession(headers={"Authorization": f"Bearer {self.api_key}"}) as session:
             async with session.request(method, url, **kwargs) as response:
                 response.raise_for_status()
-                return await response.json()
+                response_json = await response.json()
+
+                if "Errors" in response_json:
+                    # If there are errors in the response, raise a custom exception
+                    errors = response_json["Errors"]
+                    error_messages = [error["Message"] for error in errors]
+                    raise CustomApiException("\n".join(error_messages))
+
+                return response_json
 
     def make_request(self, method, url, **kwargs):
         if self.is_async:
