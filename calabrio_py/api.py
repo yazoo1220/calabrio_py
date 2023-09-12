@@ -4,7 +4,9 @@ import asyncio
 from requests.exceptions import RequestException
 from datetime import datetime
 from typing import List, Dict, Any
+import logger
 
+logger = logging.getLogger('api_client')
 
 class ExternalMeeting:
     def __init__(self, ExternalMeetingId: str, Period: Dict[str, Any], Participants: List[str], ActivityId: str = None, Title: str = None, Location: str = None, Agenda: str = None) -> None:
