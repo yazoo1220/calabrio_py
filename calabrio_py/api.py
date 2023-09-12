@@ -4,7 +4,7 @@ import asyncio
 from requests.exceptions import RequestException
 from datetime import datetime
 from typing import List, Dict, Any
-import logger
+import logging
 
 logger = logging.getLogger('api_client')
 
