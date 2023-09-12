@@ -87,12 +87,20 @@ import pandas as pd
 import json
 
 
+import pandas as pd
+import json
+from calabrio_api import AddPersonRequest
+
 class PeopleManager:
     '''
     This class is used to fetch the people data from the API and merge it with the config data.
     '''
     def __init__(self, client, config_data=None):
         self.config_data = config_data
+        if self.config_data is not None:
+            business_units = self.config_data['bus']
+            self.bus_df = pd.DataFrame(business_units)
+            self.bus_df.columns=['BusinessUnitId', 'BusinessUnitName']
         self.client = client
         self.business_units = []
         self.people = []
@@ -145,17 +153,13 @@ class PeopleManager:
 
         return flatten_all_people
 
-    async def fetch_all_people(self, date=None, include_eoy=False, with_ids=False, as_df=True, exclude_bu_names=[]):
+    async def fetch_all_people(self, date=None, include_eoy=False, with_ids=True, as_df=True, exclude_bu_names=[]):
         if self.config_data is None:
             await self.fetch_config_data(exclude_bu_names=exclude_bu_names) if self.client.set_async else self.fetch_config_data(exclude_bu_names=exclude_bu_names)
 
         # Assign today's date if date is None
         if date is None:
             date = pd.to_datetime('today').strftime('%Y-%m-%d')
-
-        business_units = self.config_data['bus']
-        self.bus_df = pd.DataFrame(business_units)
-        self.bus_df.columns=['BusinessUnitId', 'BusinessUnitName']
  
         # Fetch and process people data as of the given date
         as_of_date_data = await self.fetch_teams_and_people_as_of_date(date, exclude_bu_names=exclude_bu_names)
@@ -165,7 +169,7 @@ class PeopleManager:
         self.people_df = self.merge_and_clean_data(as_of_date_df)
 
         # Fetch config and merge with as_of_date data
-        [self.fetch_config_data_for_business_unit(bu['Name']) for bu in business_units]
+        [self.fetch_config_data_for_business_unit(bu['Name']) for bu in self.business_units]
         self.fetch_config_data_as_df()
 
         # Merge the data for EOY if include_eoy is True
@@ -450,8 +454,7 @@ class PeopleManager:
         # set termination date
         res = await self.client.set_leaving_date_for_person(person_id,termination_date)
 
-        return res
-    
+        return res 
         
 
 class PersonAccountsManager:
@@ -501,7 +504,7 @@ class PersonAccountsManager:
                     return results
                 except Exception as e:
                     # Handle any exceptions here, e.g., log an error
-                    print(f"Error while processing PersonId {person_id}: {e}")
+                    logging.error(f"Error while processing PersonId {person_id}: {e}")
                     if retry == max_retry - 1:
                         return []  # Return an empty list to indicate a failure
 
@@ -526,6 +529,8 @@ class PersonAccountsManager:
         if people_df is None:
             people_df = self.people_df
 
+        people_df['BusinessUnitId'] = people_df['BusinessUnitId'].astype(str)
+
         if client is None:
             client = self.client
 
@@ -549,7 +554,9 @@ class PersonAccountsManager:
             person_accounts_with_id.extend(chunk_results)
 
         person_accounts_df = pd.DataFrame(person_accounts_with_id)
-
+        if len(person_accounts_df) == 0:
+            print('No person accounts found for the given date')
+            return pd.DataFrame()
 
         # using people_df, add peoples' email and employment number to person_accounts on person_id
         person_accounts_df = person_accounts_df.merge(
@@ -560,6 +567,8 @@ class PersonAccountsManager:
             await self.fetch_config_data_as_df()
 
         # merge with absences_df
+        
+            
         person_accounts_df = person_accounts_df.merge(
             self.absences_df, on=['AbsenceId', 'BusinessUnitName'], how='left')
         person_accounts_df['StartDate'] = pd.to_datetime(
@@ -610,7 +619,7 @@ class PersonAccountsManager:
 
         people_df = self.people_df[self.people_df['EmploymentNumber'].isin(
             employment_numbers)]
-        person_accounts_df = await self.fetch_person_accounts(date, people_df, with_id=with_id, details=details,max_concurrent=max_concurrent)
+        person_accounts_df = await self.fetch_person_accounts(date, people_df, with_id=True, details=details,max_concurrent=max_concurrent)
         person_accounts_df = person_accounts_df[['BusinessUnitName','ContractName','EmploymentNumber','Email','AbsenceName','StartDate','EndDate','BalanceIn','Extra','Accrued','Used','Remaining','BalanceOut','TrackedBy','PersonId','AbsenceId']]
         return person_accounts_df
 
@@ -657,6 +666,16 @@ class PersonAccountsManager:
         account['StartDate'] = account['StartDate'].strftime('%Y-%m-%d')
         account['EndDate'] = account['EndDate'].strftime('%Y-%m-%d')
         return account
+
+    async def delete_person_accounts(self, accounts_df):
+        log = []
+        for index, row in accounts_df.iterrows():
+            res = await client.delete_person_account(
+                person_id=row['PersonId'],
+                absence_id=row['AbsenceId'],
+                date_from=row['StartDate']
+            )
+        return log
 
 
 class ScheduleManager:
