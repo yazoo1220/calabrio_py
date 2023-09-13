@@ -763,7 +763,7 @@ class ScheduleManager:
     async def get_schedule_by_bu_name(self, bu_name, start_date, end_date, with_ids=False, as_df=False, max_concurrent=50):
         try:
             # Fetch schedules for the specified team and date range.
-            team_names = self.people_mgr.teams_df[self.people_mgr.teams_df['BusinessUnitName'] == bu_name]['TeamName'].values[:2]
+            team_names = self.people_mgr.teams_df[self.people_mgr.teams_df['BusinessUnitName'] == bu_name]['TeamName'].values
 
             # Initialize a list to store DataFrames
             schedule_dfs = []
