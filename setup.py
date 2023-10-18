@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='calabrio_py',
-    version='0.1.30',
+    version='0.1.31',
     description='A Python client library for accessing the Calabrio API.',
     author='yachimat',
     author_email='podman1220@hotmail.com',
