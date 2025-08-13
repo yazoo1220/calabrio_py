@@ -80,6 +80,20 @@ class ApiClientBase:
     def set_async(self, async_mode=True):
         self.is_async = async_mode
 
+    def _build_url(self, url: str) -> str:
+        try:
+            if isinstance(url, str) and (url.startswith("http://") or url.startswith("https://")):
+                return url
+        except Exception:
+            pass
+        if isinstance(url, str) and url.startswith(self.base_url):
+            return url
+        if isinstance(url, str):
+            if url.startswith("/"):
+                return f"{self.base_url}{url}"
+            return f"{self.base_url}/{url}"
+        return self.base_url
+
     def make_request_sync(self, method, url, **kwargs):
         try:
             response = requests.request(method, url, **kwargs)  
@@ -117,8 +131,8 @@ class ApiClientBase:
                     logger.error("Invalid JSON: %s", str(e))
                     return None
 
-                if len(response_json['Errors'])>0:
-                    errors = response_json["Errors"]
+                errors = response_json.get("Errors", []) if isinstance(response_json, dict) else []
+                if errors:
                     error_messages = [error["Message"] for error in errors]
                     logger.error("API Errors: %s", "\n".join(error_messages))
 
@@ -134,17 +148,19 @@ class ApiClientBase:
         headers = {
             "Authorization": f"Bearer {self.api_key}"
         }
-        return self.make_request("GET", self.base_url + url, headers=headers, params=params)
+        abs_url = self._build_url(url)
+        return self.make_request("GET", abs_url, headers=headers, params=params)
 
     def post(self, url, data=None):
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}"
         }
-        return self.make_request("POST", self.base_url + url, headers=headers, json=data)
+        abs_url = self._build_url(url)
+        return self.make_request("POST", abs_url, headers=headers, json=data)
 
     def get_all_commands(self):
-        url = f"{self.base_url}/command"
+        url = "/command"
         return self.get(url)
 
     def add_full_day_absence(self, business_unit_id, person_id, date, absence_id, scenario_id=None):
@@ -912,7 +928,7 @@ class ApiClientBase:
             "period.EndDate": end_date
         }
         response = self.get(url, params=params)
-        return response.json()
+        return response
 
     def get_schedule_by_person_id(self, person_id, start_date, end_date, scenario_id=None):
         url = f"{self.base_url}/query/Schedule/ScheduleByPersonId"
